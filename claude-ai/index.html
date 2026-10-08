@@ -179,6 +179,9 @@ img.avatar { object-fit: cover; background: var(--sunk) }
 .recap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 12px; min-width: 0 }
 .recap-h { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
 .recap-h h2 { font-size: 1.15rem }
+.searchbar { display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px }
+.searchbar input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; color: inherit; outline: none; padding: 4px 2px }
+.searchbar small { color: var(--muted); white-space: nowrap }
 .dreport { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0 }
 .dreport > *, .dreport .rp-person > * { min-width: 0; overflow-wrap: anywhere }
 .dreport .rp-sum { font-size: .92rem; line-height: 1.5; margin: 0 }
@@ -1724,6 +1727,7 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
       h("div", { class: "actions" },
       h("button", { class: "btn", "aria-pressed": String(!!S.showLinks), onclick: () => { S.showLinks = !S.showLinks; render(); } }, `🔗 Link admin${allLinks().length ? " (" + allLinks().length + ")" : ""}`),
       h("button", { class: "btn", "aria-pressed": String(S.showRecap), onclick: () => { S.showRecap = !S.showRecap; render(); } }, S.showRecap ? "Tutup rekap" : "Lihat rekap"),
+      h("button", { class: "btn", "aria-pressed": String(!!S.showSearch), onclick: () => { S.showSearch = !S.showSearch; if (!S.showSearch) S.q = ""; render(); if (S.showSearch) setTimeout(() => document.getElementById("search-q")?.focus(), 0); } }, "🔍 Cari orang"),
       h("button", { class: "btn", "aria-pressed": String(!!S.showReport), onclick: () => { S.showReport = !S.showReport; render(); } }, S.showReport ? "Tutup laporan" : "📝 Laporan harian"),
       h("button", { class: "btn primary", onclick: () => { S.showAdd = !S.showAdd; render(); if (S.showAdd) setTimeout(() => document.getElementById("add-title")?.focus(), 0); } }, S.showAdd ? "Tutup" : "+ Tambah tugas")));
 
@@ -1777,7 +1781,9 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
         h("button", { class: "btn ghost", onclick: () => { S.showAdd = false; render(); } }, "Batal"),
         h("button", { class: "btn primary", onclick: submitAdd }, S.addRoutine ? "Simpan tugas rutin" : "Bagikan tugas"))) : null;
 
-    const grid = workers().length ? h("section", { class: "grid", "aria-label": "Tugas per orang" }, workers().map(personCard))
+    const found = workers().filter(matchQ);
+    const grid = workers().length ? [searchBar(found.length, workers().length), found.length ? h("section", { class: "grid", "aria-label": "Tugas per orang" }, found.map(personCard))
+        : h("p", { class: "empty" }, `Tidak ada orang yang cocok dengan "${S.q}".`)]
       : h("div", { class: "panel" }, h("h2", {}, "Daftar tim masih kosong"), h("p", { class: "muted" }, "Tambahkan anggota lewat Kelola tim di bawah."));
 
     const manage = h("details", { class: "manage", id: "manage", open: S.manageOpen, ontoggle: e => { S.manageOpen = e.target.open; } },
@@ -1896,7 +1902,7 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
     }
   }
   function reportView() {
-    const people = workers();
+    const people = workers().filter(matchQ);
     const reps = people.map(personReport);
     const focus = S.reportFilter || "all";
     const shown = reps.filter(r => focus === "all" || (focus === "warn" ? r.badge[0] === "warn" : focus === "none" ? !r.list.length : r.badge[0] === "ok"));
@@ -1925,6 +1931,22 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
         h("p", { class: "rp-text" }, r.loaded ? r.text : "Memuat…"),
         r.notes.length ? h("ul", {}, r.notes.map(n => h("li", {}, "📝 " + n))) : null))
         : h("p", { class: "empty" }, "Tidak ada orang di kategori ini."));
+  }
+
+  // Name search for the person cards (and the daily report).
+  const norm = x => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const matchQ = m => { const q = norm(S.q).trim(); return !q || q.split(/\s+/).every(w => norm([m.name, m.role, m.group].join(" ")).includes(w)); };
+  let searchT = null;
+  function searchBar(shown, total) {
+    if (!S.showSearch) return null;
+    return h("div", { class: "searchbar", role: "search" },
+      h("span", { "aria-hidden": "true" }, "🔍"),
+      h("input", { id: "search-q", type: "search", placeholder: "Cari nama, jabatan, atau unit…", "aria-label": "Cari orang", autocomplete: "off", value: S.q || "",
+        oninput: e => { S.q = e.target.value; if (!e.isComposing) { clearTimeout(searchT); searchT = setTimeout(render, 120); } },
+        oncompositionend: e => { S.q = e.target.value; render(); },
+        onkeydown: e => { if (e.key === "Escape") { S.q = ""; S.showSearch = false; render(); } } }),
+      S.q ? h("small", {}, `${shown} dari ${total} orang`) : null,
+      h("button", { class: "linkbtn", type: "button", onclick: () => { S.q = ""; S.showSearch = false; render(); } }, "Tutup"));
   }
 
   function recapView() {
