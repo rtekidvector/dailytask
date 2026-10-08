@@ -1532,7 +1532,14 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
     if (start && due && start >= due) return toast("Jam selesai harus setelah jam mulai");
     const fields = { title, note: document.getElementById("te-note").value || "", date: document.getElementById("te-date").value || t.date, start: start || null, due: due || null, hot: !!S.editHot, needProof: !!S.editProof };
     S.editTask = null;
-    if (adminMode()) return adminDo(() => sendCmd(memberByKey(key), "edit", { taskId: t.id, fields }), "Perubahan terkirim");
+    if (adminMode()) return adminDo(async () => {
+      await sendCmd(memberByKey(key), "edit", { taskId: t.id, fields });
+      // Show the change straight away; the person's own copy replaces it when their app syncs.
+      const me = (myMember() && myMember().name) || "Admin", patch = x => x.id === t.id ? { ...x, ...cleanEdit(fields), editedBy: me, editedAt: Date.now() } : x;
+      if (S.mxBase[key]) S.mxBase[key] = S.mxBase[key].map(patch);
+      if (S.sent[key]) S.sent[key] = S.sent[key].map(patch);
+      mergeSent(key);
+    }, "Perubahan terkirim — langsung berlaku tanpa perlu persetujuan");
     safe(() => db.doc(`tasks/${key}/items/${t.id}`).update({ ...cleanEdit(fields), editedBy: ownerName(), editedAt: Date.now() }), "Tugas diperbarui");
   }
   function editPanel(key, t) {
@@ -1580,7 +1587,7 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
         S.proofFor === tag && proofPanel(key, t),
         S.editTask === tag && editPanel(key, t),
         commentBox(key, t),
-        (S.owner || S.ro) && t.by !== "self" && S.editTask !== tag && h("button", { class: "linkbtn notebtn", style: "margin-right:12px", onclick: () => openEditTask(key, t) }, "✎ Ubah detail"),
+        (S.owner || S.ro) && S.editTask !== tag && h("button", { class: "linkbtn notebtn", style: "margin-right:12px", onclick: () => openEditTask(key, t) }, "✎ Ubah detail"),
         t.report && S.editNote !== tag && h("div", { class: "report" }, h("span", {}, "Catatan" + (t.reportAt ? " · " + fmtTime(t.reportAt) : "")), h("p", {}, linkify(t.report))),
         S.editNote === tag
           ? h("form", { class: "noteform", onsubmit: e => { e.preventDefault(); saveNote(key, t); } },
