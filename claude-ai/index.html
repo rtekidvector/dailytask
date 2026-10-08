@@ -179,6 +179,20 @@ img.avatar { object-fit: cover; background: var(--sunk) }
 .recap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 12px; min-width: 0 }
 .recap-h { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
 .recap-h h2 { font-size: 1.15rem }
+.dreport { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0 }
+.dreport > *, .dreport .rp-person > * { min-width: 0; overflow-wrap: anywhere }
+.dreport .rp-sum { font-size: .92rem; line-height: 1.5; margin: 0 }
+.dreport .rp-person { border-top: 1px solid var(--line); padding-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px }
+.dreport .rp-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center }
+.dreport .rp-head b { font-size: 1rem }
+.dreport .rp-head small { color: var(--muted) }
+.dreport .rp-text { margin: 0; font-size: .9rem; line-height: 1.55 }
+.dreport ul { margin: 0; padding-left: 18px; font-size: .86rem; line-height: 1.5; color: var(--ink) }
+.dreport ul li small { color: var(--muted) }
+.rp-badge { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 2px 9px }
+.rp-badge.ok { background: var(--ok-soft); color: var(--ok) }
+.rp-badge.warn { background: var(--warn-soft); color: var(--warn) }
+.rp-badge.off { background: var(--sunk); color: var(--muted) }
 .recap-h p { color: var(--muted); font-size: .82rem }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--sunk) }
 .seg button { border: 0; background: none; padding: 4px 12px; border-radius: 999px; font-size: .82rem; font-weight: 600; color: var(--muted) }
@@ -1710,6 +1724,7 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
       h("div", { class: "actions" },
       h("button", { class: "btn", "aria-pressed": String(!!S.showLinks), onclick: () => { S.showLinks = !S.showLinks; render(); } }, `🔗 Link admin${allLinks().length ? " (" + allLinks().length + ")" : ""}`),
       h("button", { class: "btn", "aria-pressed": String(S.showRecap), onclick: () => { S.showRecap = !S.showRecap; render(); } }, S.showRecap ? "Tutup rekap" : "Lihat rekap"),
+      h("button", { class: "btn", "aria-pressed": String(!!S.showReport), onclick: () => { S.showReport = !S.showReport; render(); } }, S.showReport ? "Tutup laporan" : "📝 Laporan harian"),
       h("button", { class: "btn primary", onclick: () => { S.showAdd = !S.showAdd; render(); if (S.showAdd) setTimeout(() => document.getElementById("add-title")?.focus(), 0); } }, S.showAdd ? "Tutup" : "+ Tambah tugas")));
 
     const claims = S.claims.filter(c => S.team.some(m => m.id === c.memberId));
@@ -1796,9 +1811,9 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
     const myOpen = S.ro ? (S.items[S.meId] || []).filter(x => x.date <= today() && x.status !== "done").length : 0;
     const myTasksNote = myOpen ? h("section", { class: "tip" }, h("b", {}, `📋 Kamu punya ${myOpen} tugas`),
       h("div", {}, h("button", { class: "btn small primary", onclick: () => { S.tab = "saya"; render(); } }, "Buka Tugas saya"))) : null;
-    if (S.ro) return [header, h("main", { class: "wrap" }, alertBar(), noteBar(), myTasksNote, unitBar, summary, linksPanel(), idleNotice(), addPanel, S.showRecap && recapView(), grid,
+    if (S.ro) return [header, h("main", { class: "wrap" }, alertBar(), noteBar(), myTasksNote, unitBar, summary, linksPanel(), idleNotice(), addPanel, S.showRecap && recapView(), S.showReport && reportView(), grid,
       h("p", { class: "foot" }, S.mirrorErr ? "Perangkat atau browser ini tidak bisa membuka data pantauan. Coba buka di browser lain atau perbarui browser." : "Tugas yang kamu beri, hapus, atau kembalikan dikirim ke aplikasi orangnya dan berlaku saat aplikasinya terbuka. Progres di sini ikut diperbarui setelahnya."))];
-    return [header, h("main", { class: "wrap" }, alertBar(), noteBar(), unitBar, summary, linksPanel(), notice, idleNotice(), addPanel, S.showRecap && recapView(), grid, manage)];
+    return [header, h("main", { class: "wrap" }, alertBar(), noteBar(), unitBar, summary, linksPanel(), notice, idleNotice(), addPanel, S.showRecap && recapView(), S.showReport && reportView(), grid, manage)];
   }
 
   function idleNotice() {
@@ -1815,6 +1830,101 @@ table.mx { border-collapse: separate; border-spacing: 3px; font-variant-numeric:
         canTag() && tagTargets().length ? (S.tagOpen === "idle:" + idle.map(m => m.id).join(",")
           ? tagForm(idle.map(m => m.id))
           : h("button", { class: "linkbtn", style: "margin-top:6px", onclick: () => { openTag(idle.map(m => m.id)); S.tagOpen = "idle:" + idle.map(m => m.id).join(","); render(); } }, "🏷️ Tag admin soal ini")) : null));
+  }
+
+  // ---------- daily report: a written progress summary per person ----------
+  function dueMs(t, f = "due") { if (!t[f] || !t.date) return null; const [hh, mm] = t[f].split(":").map(Number); const d = parse(t.date); d.setHours(hh, mm, 0, 0); return d.getTime(); }
+  const joinId = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " dan " + a[a.length - 1];
+  function personReport(m) {
+    const key = keyFor(m), all = S.items[key] || [], d = S.date, isToday = d === today(), now = Date.now();
+    const day = all.filter(t => t.date === d);
+    const carried = all.filter(t => t.date < d && (t.status !== "done" || (t.doneAt && ymd(new Date(t.doneAt)) === d)));
+    const list = day.concat(carried);
+    const done = list.filter(t => t.status === "done" && (t.date === d || ymd(new Date(t.doneAt || 0)) === d));
+    const doing = list.filter(t => t.status === "doing");
+    const todo = list.filter(t => t.status !== "done" && t.status !== "doing");
+    const lateDone = done.filter(t => { const dm = dueMs(t); return dm && t.doneAt && t.doneAt > dm + 60000; });
+    const overdue = list.filter(t => t.status !== "done" && ((dueMs(t) && (isToday ? now : parse(d).getTime() + 864e5) > dueMs(t)) || t.date < d));
+    const noProof = done.filter(t => t.needProof && !(t.proof && (t.proof.asset || t.proof.link || t.proof.photo)));
+    const asked = S.keyDoc[key] && S.keyDoc[key].askAt && ymd(new Date(S.keyDoc[key].askAt)) === d;
+    const notes = list.filter(t => t.report).map(t => `${t.title}: ${t.report}`);
+    const total = day.length, doneToday = done.length;
+    const fromOthers = list.filter(t => t.by === "owner" && t.fromAdmin).map(t => t.fromAdmin);
+    const tasksSelf = list.filter(t => t.by === "self").length;
+    const firstStart = Math.min(...list.map(t => t.startedAt || Infinity).filter(x => ymd(new Date(x === Infinity ? 0 : x)) === d));
+    const lastDone = Math.max(0, ...done.map(t => t.doneAt || 0));
+    let badge;
+    if (!list.length) badge = ["off", "Tanpa tugas"];
+    else if (!todo.length && !doing.length) badge = lateDone.length ? ["warn", "Tuntas, ada yang telat"] : ["ok", "Tuntas"];
+    else if (overdue.length) badge = ["warn", "Perlu perhatian"];
+    else if (!doneToday && !doing.length && isToday) badge = ["warn", "Belum mulai"];
+    else badge = ["ok", "Sesuai jalur"];
+    const name = m.name;
+    const t1 = x => `"${x.title}"`;
+    const parts = [];
+    if (!list.length) parts.push(`${name} tidak punya tugas ${isToday ? "hari ini" : "pada tanggal ini"}` + (asked ? ` dan sudah meminta tugas ke admin pukul ${fmtTime(S.keyDoc[key].askAt)}.` : "."));
+    else {
+      parts.push(`${name} menyelesaikan ${doneToday} dari ${list.length} tugas` + (list.length ? ` (${Math.round(doneToday / list.length * 100)}%)` : "") + (carried.length ? `, termasuk ${carried.length} tugas bawaan dari hari sebelumnya` : "") + ".");
+      if (isFinite(firstStart)) parts.push(`Mulai bekerja pukul ${fmtTime(firstStart)}` + (lastDone ? `, tugas terakhir selesai pukul ${fmtTime(lastDone)}.` : "."));
+      if (done.length) parts.push(`Yang selesai: ${joinId(done.map(t => t1(t) + (t.doneAt ? ` (${fmtTime(t.doneAt)})` : "")))}.`);
+      if (lateDone.length) parts.push(`${lateDone.length === 1 ? "Satu tugas" : lateDone.length + " tugas"} selesai melewati jam target: ${joinId(lateDone.map(t => `${t1(t)} telat ${dur(t.doneAt - dueMs(t))}`))}.`);
+      if (doing.length) parts.push(`Sedang dikerjakan: ${joinId(doing.map(t => t1(t) + (t.startedAt ? ` sejak ${fmtTime(t.startedAt)}` : "")))}.`);
+      if (todo.length) parts.push(`Belum dimulai: ${joinId(todo.map(t => t1(t) + (t.due ? ` (target ${t.due})` : "")))}.`);
+      if (overdue.length) parts.push(`⚠️ ${overdue.length} tugas lewat target atau tertunda dari hari sebelumnya dan belum selesai.`);
+      if (noProof.length) parts.push(`${noProof.length} tugas selesai tanpa bukti.`);
+      if (fromOthers.length) { const c = {}; fromOthers.forEach(n => c[n] = (c[n] || 0) + 1); parts.push(`Tugas dari: ${Object.entries(c).map(([n, k]) => `${n} (${k})`).join(", ")}` + (tasksSelf ? `; ${tasksSelf} dibuat sendiri.` : ".")); }
+      else if (tasksSelf) parts.push(`${tasksSelf} tugas dibuat sendiri.`);
+      if (asked) parts.push(`Sudah meminta tugas tambahan pukul ${fmtTime(S.keyDoc[key].askAt)}.`);
+    }
+    return { m, list, done, doing, todo, overdue, lateDone, noProof, notes, badge, text: parts.join(" "), loaded: !!S.itemsLoaded[key] };
+  }
+  function reportText(reps, head) {
+    const lines = [head, ""];
+    for (const r of reps) {
+      lines.push(`*${r.m.name}*${r.m.role ? " — " + r.m.role : ""} [${r.badge[1]}]`, r.text);
+      if (r.notes.length) lines.push("Catatan: " + r.notes.join(" | "));
+      lines.push("");
+    }
+    return lines.join("\n").trim();
+  }
+  async function copyText(txt) {
+    try { await navigator.clipboard.writeText(txt); toast("Laporan disalin. Tinggal tempel di WhatsApp."); }
+    catch (_) {
+      const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast("Laporan disalin."); } catch (e) { toast("Gagal menyalin, salin manual dari layar."); }
+      ta.remove();
+    }
+  }
+  function reportView() {
+    const people = workers();
+    const reps = people.map(personReport);
+    const focus = S.reportFilter || "all";
+    const shown = reps.filter(r => focus === "all" || (focus === "warn" ? r.badge[0] === "warn" : focus === "none" ? !r.list.length : r.badge[0] === "ok"));
+    const tot = reps.reduce((a, r) => a + r.list.length, 0), dn = reps.reduce((a, r) => a + r.done.length, 0);
+    const tuntas = reps.filter(r => r.list.length && !r.todo.length && !r.doing.length).map(r => r.m.name);
+    const warn = reps.filter(r => r.badge[0] === "warn").map(r => r.m.name);
+    const none = reps.filter(r => !r.list.length).map(r => r.m.name);
+    const late = reps.reduce((a, r) => a + r.overdue.length, 0);
+    const head = `Laporan harian ${fmtLong(S.date)}` + (S.unit ? ` · Unit ${S.unit}` : "");
+    const sum = `${people.length} orang, ${tot} tugas, ${dn} selesai (${tot ? Math.round(dn / tot * 100) : 0}%).` +
+      (tuntas.length ? ` Tuntas: ${joinId(tuntas)}.` : "") +
+      (warn.length ? ` Perlu perhatian: ${joinId(warn)}.` : "") +
+      (late ? ` ${late} tugas lewat target atau tertunda belum selesai.` : "") +
+      (none.length ? ` Tanpa tugas: ${joinId(none)}.` : "");
+    const chip = (id, label, n) => h("button", { class: "chip", "aria-pressed": String(focus === id), onclick: () => { S.reportFilter = id; render(); } }, `${label} (${n})`);
+    return h("section", { class: "dreport", "aria-label": "Laporan harian" },
+      h("div", { class: "recap-h" },
+        h("div", {}, h("h2", {}, "📝 " + head), h("p", { class: "muted", style: "font-size:.85rem; margin:2px 0 0" }, "Ringkasan otomatis dari status, jam, bukti, dan catatan tiap tugas. Ganti tanggal di atas untuk hari lain.")),
+        h("button", { class: "btn small", onclick: () => copyText(reportText(shown, head + "\n" + sum)) }, "📋 Salin laporan")),
+      h("p", { class: "rp-sum" }, h("b", {}, "Ringkasan tim: "), sum),
+      h("div", { class: "chips" }, chip("all", "Semua", reps.length), chip("warn", "Perlu perhatian", warn.length), chip("ok", "Lancar", reps.filter(r => r.badge[0] === "ok").length), chip("none", "Tanpa tugas", none.length)),
+      shown.length ? shown.map(r => h("div", { class: "rp-person" },
+        h("div", { class: "rp-head" }, avatar(r.m), h("b", {}, r.m.name), r.m.role && h("small", {}, [r.m.role, r.m.group].filter(Boolean).join(" · ")),
+          h("span", { class: "rp-badge " + r.badge[0] }, r.badge[1]),
+          r.list.length ? h("small", {}, `${r.done.length}/${r.list.length} selesai`) : null),
+        h("p", { class: "rp-text" }, r.loaded ? r.text : "Memuat…"),
+        r.notes.length ? h("ul", {}, r.notes.map(n => h("li", {}, "📝 " + n))) : null))
+        : h("p", { class: "empty" }, "Tidak ada orang di kategori ini."));
   }
 
   function recapView() {
