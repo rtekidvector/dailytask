@@ -1,5 +1,5 @@
 /** Tiny pub/sub: routes announce what changed, the SSE endpoint tells browsers to refetch it. No data travels over it. */
-export type Topic = "tasks" | "team" | "links";
+export type Topic = "tasks" | "team" | "links" | "meta" | "inbox" | "leaves" | "resources";
 export function createBus() {
   const subs = new Set<(t: Topic) => void>();
   return {

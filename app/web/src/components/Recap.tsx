@@ -1,13 +1,14 @@
 import type { MemberDTO, TaskDTO } from "@shared/schemas";
+import { PersonLink } from "./ui";
 import { addDays, parseYmd } from "@shared/time";
 import { DAYN, fmtShort, isToday, today } from "../lib/format";
-import { isIdle } from "./PersonCard";
+import { isIdle } from "../lib/tasks";
 
 type Cell = { total: number; done: number };
 const shade = (c: Cell) => {
   if (!c.total) return undefined;
   const p = c.done / c.total;
-  return { background: `color-mix(in srgb, var(--accent) ${Math.round(10 + p * 80)}%, var(--surface))`, color: p >= 0.55 ? "var(--accent-ink)" : "var(--ink)" };
+  return { background: `color-mix(in srgb, var(--blue) ${Math.round(10 + p * 75)}%, var(--surface))`, color: p >= 0.6 ? "#fff" : "var(--ink)" };
 };
 
 export function Recap({ people, tasks, date, days: n, onDays, onPick, loaded }: {
@@ -33,7 +34,7 @@ export function Recap({ people, tasks, date, days: n, onDays, onPick, loaded }: 
     const warn = date === t0 && loaded && isIdle(list);
     return (
       <tr key={m.email}>
-        <th className="who" scope="row"><b>{m.name}{warn && <span className="warnico" title={isToday(m.askAt) ? "Minta tugas" : "Tidak ada tugas aktif"} aria-label="Tidak ada tugas aktif">!</span>}</b><span>{m.role}</span></th>
+        <th className="who" scope="row"><b><PersonLink email={m.email}>{m.name}</PersonLink>{warn && <span className="warnico" title={isToday(m.askAt) ? "Minta tugas" : "Tidak ada tugas aktif"} aria-label="Tidak ada tugas aktif">!</span>}</b><span>{m.role}</span></th>
         {cells.map((c, i) => <td key={days[i]}><CellBtn label={m.name} c={c} d={days[i]!} /></td>)}
         <Tot done={done} total={total} />
       </tr>
@@ -55,7 +56,7 @@ export function Recap({ people, tasks, date, days: n, onDays, onPick, loaded }: 
         <tfoot><tr><th className="who" scope="row"><b>Semua</b></th>{col.map((c, i) => <td key={days[i]}><CellBtn label="Semua" c={c} d={days[i]!} /></td>)}<Tot done={gDone} total={gTot} /></tr></tfoot>
       </table></div>
       <div className="legend">
-        <span>0%<span className="ramp" aria-hidden="true">{[0, .25, .5, .75, 1].map(p => <i key={p} style={{ background: `color-mix(in srgb, var(--accent) ${Math.round(10 + p * 80)}%, var(--surface))` }} />)}</span>100% selesai</span>
+        <span>0%<span className="ramp" aria-hidden="true">{[0, .25, .5, .75, 1].map(p => <i key={p} style={{ background: `color-mix(in srgb, var(--blue) ${Math.round(10 + p * 75)}%, var(--surface))` }} />)}</span>100% selesai</span>
         <span><i className="nobox" aria-hidden="true" />tidak ada tugas</span>
         <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span className="warnico" aria-hidden="true">!</span>tidak ada tugas aktif hari ini</span>
       </div>

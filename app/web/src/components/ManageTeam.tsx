@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { PersonLink } from "./ui";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -19,7 +20,7 @@ function UnitField({ name, defaultValue }: { name: string; defaultValue?: string
   const { team, policy } = useViewer();
   if (!policy.isBoss) return <label className="field"><span>Unit</span><select className="input" name={name} defaultValue={defaultValue || policy.groups[0]}>{policy.groups.map(g => <option key={g}>{g}</option>)}</select></label>;
   return <label className="field"><span>Unit (mis. HCS, HCM)</span>
-    <input className="input" name={name} list="unit-list" maxLength={20} placeholder="Kosongkan kalau tidak ada" style={{ textTransform: "uppercase" }} defaultValue={defaultValue} />
+    <input className="input" name={name} list="unit-list" maxLength={20} placeholder="Kosongkan kalau tidak ada" defaultValue={defaultValue} />
     <datalist id="unit-list">{units(team).map(g => <option key={g} value={g} />)}</datalist></label>;
 }
 
@@ -91,7 +92,7 @@ function Row({ m, editing, onEdit }: { m: MemberDTO; editing: boolean; onEdit: (
       <div ref={setNodeRef} className={"mrow" + (isDragging ? " dragging" : "")} style={{ transform: CSS.Translate.toString(transform), transition }}>
         <button className="handle" type="button" aria-label={`Geser ${m.name}. Pakai spasi lalu panah atas atau bawah.`} title="Tarik untuk memindah" {...attributes} {...listeners}>⠿</button>
         <Avatar m={m} />
-        <div className="who"><b>{m.name}</b><small>{m.role || "—"}</small><small>{m.email}</small></div>
+        <div className="who"><b><PersonLink email={m.email}>{m.name}</PersonLink></b><small>{m.role || "—"}</small><small>{m.email}</small></div>
         {m.group && <span className="tag due">{m.group}</span>}
         {m.isAdmin && <span className="tag rut">{m.adminGroups.length ? "Admin " + m.adminGroups.join("/") : "Admin penuh"}</span>}
         {m.seenAt ? <span className="tag on" title={"Terakhir buka " + fmtShort(ymd(new Date(m.seenAt)))}>Sudah masuk</span> : <span className="tag off">Belum masuk</span>}
@@ -105,7 +106,7 @@ function Row({ m, editing, onEdit }: { m: MemberDTO; editing: boolean; onEdit: (
   );
 }
 
-export function ManageTeam({ list }: { list: MemberDTO[] }) {
+export function ManageTeam({ list, open }: { list: MemberDTO[]; open?: boolean }) {
   const { policy } = useViewer();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
@@ -122,7 +123,7 @@ export function ManageTeam({ list }: { list: MemberDTO[] }) {
     reorder.mutate(next);
   };
   return (
-    <details className="manage" id="manage">
+    <details className="manage" id="manage" open={open}>
       <summary>Kelola tim</summary>
       <p className="foot" style={{ margin: "8px 0" }}>{policy.isBoss
         ? 'Setiap orang masuk dengan akun Google sesuai email yang terdaftar di sini dan hanya melihat tugasnya sendiri. Admin "Semua unit" punya kendali penuh; admin satu unit hanya mengelola orang di unit itu.'
@@ -133,16 +134,17 @@ export function ManageTeam({ list }: { list: MemberDTO[] }) {
           <div className="mlist">{list.map(m => <Row key={m.email} m={m} editing={editing === m.email} onEdit={o => setEditing(o ? m.email : null)} />)}</div>
         </SortableContext>
       </DndContext>
-      <form className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }} onSubmit={e => {
+      <form className="addmember" onSubmit={e => {
         e.preventDefault(); const form = e.currentTarget, f = new FormData(form);
         if (!String(f.get("name")).trim()) return void toast.error("Tulis nama anggota");
         add.mutate(f, { onSuccess: () => form.reset(), onError: e2 => toast.error(errorText(e2)) });
       }}>
-        <label className="field"><span>Nama</span><input className="input" name="name" maxLength={40} /></label>
-        <label className="field"><span>Divisi</span><input className="input" name="role" maxLength={60} /></label>
-        <label className="field"><span>Email Google</span><input className="input" name="email" type="email" maxLength={120} required /></label>
+        <h3 className="addmember-h">Tambah anggota baru</h3>
+        <label className="field"><span>Nama</span><input className="input" name="name" maxLength={40} placeholder="Nama panggilan" /></label>
+        <label className="field"><span>Jabatan</span><input className="input" name="role" maxLength={60} placeholder="Contoh: Videografer" /></label>
+        <label className="field"><span>Email Google</span><input className="input" name="email" type="email" maxLength={120} required placeholder="nama@gmail.com" /></label>
         <UnitField name="group" />
-        <button className="btn" type="submit" disabled={add.isPending}>Tambah anggota</button>
+        <button className="btn primary" type="submit" disabled={add.isPending}>Tambah anggota</button>
       </form>
     </details>
   );

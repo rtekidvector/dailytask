@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CheckCheck } from "lucide-react";
+import { LoginScene } from "./Illus";
 import { toast } from "sonner";
 import { api, ok } from "../lib/api";
 import { keys } from "../lib/queries";
@@ -31,18 +33,29 @@ export function Login() {
             catch { toast.error("Gagal masuk. Coba lagi."); }
           },
         });
-        window.google!.accounts.id.renderButton(slot.current, { theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", locale: "id", width: 260 });
+        window.google!.accounts.id.renderButton(slot.current, { theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", locale: "id", width: 280 });
       } catch { toast.error("Tombol Google tidak bisa dimuat. Periksa koneksi."); }
     })();
     return () => { dead = true; };
   }, [qc]);
   return (
-    <div className="center login"><div>
-      <img src="/icons/icon-192.png" alt="" width={72} height={72} style={{ borderRadius: 18, margin: "0 auto" }} />
-      <h1 style={{ fontSize: "1.7rem" }}>Tugas Harian Tim Kreatif</h1>
-      <p className="muted">Masuk dengan akun Google yang emailnya sudah didaftarkan pemilik.</p>
-      <div ref={slot} style={{ minHeight: 44, display: "flex", justifyContent: "center" }} />
-      <InstallCard />
-    </div></div>
+    <div className="loginwrap">
+      <section className="loginart" aria-hidden="true">
+        <div className="logo"><i><CheckCheck size={18} /></i>Tugas Harian</div>
+        <LoginScene />
+        <div>
+          <h2>Kerja tim kreatif, <em>rapi</em> dalam satu tempat.</h2>
+          <p>Papan, kalender, bukti kerja, dan laporan ketepatan waktu untuk seluruh tim.</p>
+        </div>
+      </section>
+      <main className="loginform">
+        <div>
+          <h1>Masuk</h1>
+          <p className="muted">Gunakan akun Google yang emailnya sudah didaftarkan pemilik.</p>
+          <div ref={slot} style={{ minHeight: 44, display: "flex", marginTop: 8 }} />
+          <InstallCard />
+        </div>
+      </main>
+    </div>
   );
 }

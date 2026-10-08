@@ -8,6 +8,8 @@ const schema = z.object({
   PORT: z.coerce.number().default(3000),
   HOST: z.string().default("127.0.0.1"),
   WEB_DIR: z.string().default("../web/dist"),
+  DEV_AUTO_LOGIN: z.string().email().optional(),
+  ALLOW_DEV_LOGIN: z.string().optional().transform(v => v === "1"),
 });
 export type Env = z.infer<typeof schema>;
 

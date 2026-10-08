@@ -553,6 +553,22 @@ import { OWNER_EMAIL, DEFAULT_TEAM, WORKER_URL } from "./config.js";
       h("button", { class: "iconbtn", "aria-label": "Hari berikutnya", onclick: () => setDate(addDays(S.date, 1)) }, "›"),
       !isToday && h("button", { class: "btn small", onclick: () => setDate(today()) }, "Hari ini"));
   }
+  function jumpTo(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function mainNav() {
+    return h("nav", { class: "mainnav", "aria-label": "Menu utama" },
+      h("button", { class: "active", onclick: () => jumpTo("overview") }, "Dashboard"),
+      h("button", { onclick: () => { S.showRecap = true; render(); setTimeout(() => jumpTo("analytics"), 0); } }, "Analitik"),
+      h("button", { onclick: () => jumpTo("workboard") }, "Pekerjaan"),
+      !S.ro && h("button", { onclick: () => jumpTo("manage") }, "Tim"));
+  }
+  function metricCard(icon, label, value, note, tone) {
+    return h("article", { class: "metric " + tone },
+      h("div", { class: "metric-top" }, h("span", { class: "metric-icon", "aria-hidden": "true" }, icon), h("span", { class: "metric-label" }, label)),
+      h("strong", {}, value),
+      h("small", {}, note));
+  }
   function bar(c, total) {
     const p = n => total ? (n / total * 100).toFixed(2) + "%" : "0";
     return h("div", { class: "stackbar", role: "img", "aria-label": `${c.done} selesai, ${c.doing} dikerjakan, ${c.todo} belum` },
@@ -699,20 +715,22 @@ import { OWNER_EMAIL, DEFAULT_TEAM, WORKER_URL } from "./config.js";
 
     const header = h("header", { class: "top" }, h("div", { class: "top-in" },
       S.ro ? h("div", { class: "brand me" }, avatar(myMember()), h("div", {}, h("h1", {}, "Pantau Tim"), h("p", {}, "Admin · " + workers().length + " orang"))) : h("div", { class: "brand" }, h("h1", {}, "Tugas Harian Tim Kreatif"), h("p", {}, fmtLong(S.date) + " · " + workers().length + " orang" + (isBoss() ? "" : " · Admin " + myAdminGroups().join(", ")))),
-      S.ro && adminTabs(),
+      mainNav(), S.ro && adminTabs(),
       dateNav(), userChip()));
 
-    const summary = h("section", { class: "summary", "aria-label": "Ringkasan" },
-      h("div", {},
-        h("div", { class: "big" }, pct + "%", h("span", {}, total ? `selesai dari ${total} tugas` : "belum ada tugas")),
-        bar(c, total),
-        h("div", { class: "counts" },
-          h("span", {}, h("i", { class: "dot done" }), h("b", {}, c.done), " selesai"),
-          h("span", {}, h("i", { class: "dot doing" }), h("b", {}, c.doing), " dikerjakan"),
-          h("span", {}, h("i", { class: "dot todo" }), h("b", {}, c.todo), " belum"))),
-      h("div", { class: "actions" },
-      h("button", { class: "btn", "aria-pressed": String(S.showRecap), onclick: () => { S.showRecap = !S.showRecap; render(); } }, S.showRecap ? "Tutup rekap" : "Lihat rekap"),
-      !S.ro && h("button", { class: "btn primary", onclick: () => { S.showAdd = !S.showAdd; render(); if (S.showAdd) setTimeout(() => document.getElementById("add-title")?.focus(), 0); } }, S.showAdd ? "Tutup" : "+ Tambah tugas")));
+    const summary = h("section", { class: "dashboard-overview", id: "overview", "aria-label": "Ringkasan dashboard" },
+      h("div", { class: "welcome-card" },
+        h("div", {}, h("span", { class: "eyebrow" }, "WORKSPACE HARI INI"), h("h2", {}, "Selamat datang kembali"),
+          h("p", {}, total ? `${c.done} dari ${total} tugas tim telah selesai. Pantau ritme kerja dan bantu tim menuntaskan prioritas.` : "Mulai hari dengan membagikan tugas dan menyusun prioritas tim."),
+          h("div", { class: "actions hero-actions" },
+            !S.ro && h("button", { class: "btn primary", onclick: () => { S.showAdd = true; render(); setTimeout(() => document.getElementById("add-title")?.focus(), 0); } }, "+ Buat tugas"),
+            h("button", { class: "btn", onclick: () => { S.showRecap = true; render(); setTimeout(() => jumpTo("analytics"), 0); } }, "Lihat laporan"))),
+        h("div", { class: "progress-orbit", style: `--progress:${pct * 3.6}deg` }, h("div", {}, h("strong", {}, pct + "%"), h("span", {}, "Tercapai")))),
+      h("div", { class: "metric-grid" },
+        metricCard("✓", "Selesai", c.done, total ? `${pct}% dari semua tugas` : "Belum ada tugas", "success"),
+        metricCard("↗", "Dikerjakan", c.doing, "Sedang aktif sekarang", "info"),
+        metricCard("○", "Belum dimulai", c.todo, c.todo ? "Perlu tindak lanjut" : "Semua terkendali", "neutral"),
+        metricCard("!", "Anggota tanpa tugas", workers().filter(m => isIdle(keyFor(m))).length, `Dari ${workers().length} anggota`, "warning")));
 
     const addPanel = S.showAdd ? h("section", { class: "panel", "aria-label": "Tambah tugas" },
       h("h2", {}, "Tugas baru"),
@@ -741,7 +759,7 @@ import { OWNER_EMAIL, DEFAULT_TEAM, WORKER_URL } from "./config.js";
         h("button", { class: "btn ghost", onclick: () => { S.showAdd = false; render(); } }, "Batal"),
         h("button", { class: "btn primary", onclick: submitAdd }, S.addRoutine ? "Simpan tugas rutin" : "Bagikan tugas"))) : null;
 
-    const grid = workers().length ? h("section", { class: "grid", "aria-label": "Tugas per orang" }, workers().map(personCard))
+    const grid = workers().length ? h("section", { class: "grid", id: "workboard", "aria-label": "Tugas per orang" }, workers().map(personCard))
       : h("div", { class: "panel" }, h("h2", {}, "Daftar tim masih kosong"), h("p", { class: "muted" }, "Tambahkan anggota lewat Kelola tim di bawah."));
 
     const manage = h("details", { class: "manage", id: "manage", open: S.manageOpen, ontoggle: e => { S.manageOpen = e.target.open; } },
@@ -821,7 +839,7 @@ import { OWNER_EMAIL, DEFAULT_TEAM, WORKER_URL } from "./config.js";
         totCell(done, total));
     });
     const steps = [0, .25, .5, .75, 1];
-    return h("section", { class: "recap", "aria-label": "Rekap" },
+    return h("section", { class: "recap", id: "analytics", "aria-label": "Rekap" },
       h("div", { class: "recap-h" },
         h("div", {}, h("h2", {}, "Rekap per orang"), h("p", {}, `${fmtShort(days[0])} – ${fmtShort(days[n - 1])} · angka = selesai/total tugas. Ketuk kotak untuk membuka hari itu.`)),
         h("div", { class: "seg", role: "group", "aria-label": "Rentang rekap" },

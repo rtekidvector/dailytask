@@ -8,6 +8,41 @@
       "when": 1791446346427,
       "tag": "0000_moaning_scorpion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791448009721,
+      "tag": "0001_thin_robin_chapel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791486863063,
+      "tag": "0002_leaves",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791487225363,
+      "tag": "0003_time_entries",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791487716838,
+      "tag": "0004_project_close",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791487934131,
+      "tag": "0005_resources_revisions",
+      "breakpoints": true
     }
   ]
 }

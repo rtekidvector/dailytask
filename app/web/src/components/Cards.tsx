@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { enablePush, pushSupported } from "../lib/push";
 import { errorText } from "../lib/queries";
@@ -42,7 +43,7 @@ export function NotifyCard({ manager }: { manager: boolean }) {
   if (perm !== "default" || off) return null;
   return (
     <section className="tip">
-      <b>🔔 Aktifkan notifikasi</b>
+      <b className="iconline"><Bell size={16} />Aktifkan notifikasi</b>
       <p>{manager ? "Dapatkan pemberitahuan saat tugas selesai atau ada yang minta tugas." : "Dapatkan pemberitahuan saat ada tugas baru, tugas dikembalikan, dan pengingat tenggat."}</p>
       <div className="chips">
         <button className="btn primary small" onClick={async () => {

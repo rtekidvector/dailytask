@@ -38,6 +38,6 @@ export function createPush(db: Db, ownerEmail: string, appUrl: string) {
     }
     return out;
   }
-  return { publicKey: pub, send, managersOf };
+  return { publicKey: pub, send, managersOf, ownerEmail };
 }
 export type Push = ReturnType<typeof createPush>;
